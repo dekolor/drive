@@ -3,7 +3,7 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        hostname: "https://fast-sparrow-58.convex.cloud",
+        hostname: "fast-sparrow-58.convex.cloud",
       },
     ],
   },
