@@ -5,12 +5,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Doc, Id } from "../../convex/_generated/dataModel";
+import { Doc, Id } from "../../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -18,6 +19,7 @@ import {
   GanttChartIcon,
   ImageIcon,
   MoreVertical,
+  StarIcon,
   TrashIcon,
 } from "lucide-react";
 
@@ -33,12 +35,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ReactNode, useState } from "react";
 import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import { useToast } from "@/components/ui/use-toast";
 import Image from "next/image";
 
 function FileCardActions({ file }: { file: Doc<"files"> }) {
   const deleteFile = useMutation(api.files.deleteFile);
+  const toggleFavourite = useMutation(api.files.toggleFavourites);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const { toast } = useToast();
 
@@ -80,6 +83,14 @@ function FileCardActions({ file }: { file: Doc<"files"> }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent>
           <DropdownMenuItem
+            onClick={() => toggleFavourite({ fileId: file._id })}
+            className="flex gap-1 items-center cursor-pointer"
+          >
+            <StarIcon className="w-4 h-4" />
+            Favourite
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
             onClick={() => setIsConfirmOpen(true)}
             className="flex gap-1 text-red-600 items-center cursor-pointer"
           >
@@ -116,13 +127,8 @@ export function FileCard({ file }: { file: Doc<"files"> }) {
         {/* <CardDescription>Card Description</CardDescription> */}
       </CardHeader>
       <CardContent className="h-[200px] flex justify-center items-center">
-        {file.type === "image" && (
-          <Image
-            alt={file.name}
-            width="200"
-            height="100"
-            src={getFileUrl(file.fileId)}
-          />
+        {file.type === "image" && file.url && (
+          <Image alt={file.name} width="200" height="100" src={file.url} />
         )}
 
         {file.type === "csv" && <GanttChartIcon className="w-20 h-20" />}
@@ -132,7 +138,7 @@ export function FileCard({ file }: { file: Doc<"files"> }) {
         <Button
           onClick={() => {
             // open a new tab to the file location on convex
-            window.open(getFileUrl(file.fileId), "_blank");
+            window.open(file.url, "_blank");
           }}
         >
           Download

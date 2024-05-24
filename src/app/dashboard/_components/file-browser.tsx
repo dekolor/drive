@@ -3,13 +3,14 @@
 import { Button } from "@/components/ui/button";
 import { useOrganization, useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import UploadButton from "./upload-button";
 import { FileCard } from "./file-card";
 import Image from "next/image";
-import { Loader2 } from "lucide-react";
+import { FileIcon, Loader2, StarIcon } from "lucide-react";
 import { SearchBar } from "./search-bar";
 import { useState } from "react";
+import Link from "next/link";
 
 function Placeholder() {
   return (
@@ -26,7 +27,13 @@ function Placeholder() {
   );
 }
 
-export default function Home() {
+export default function FileBrowser({
+  title,
+  favourites,
+}: {
+  title: string;
+  favourites?: boolean;
+}) {
   const organization = useOrganization();
   const user = useUser();
   const [query, setQuery] = useState("");
@@ -35,11 +42,14 @@ export default function Home() {
   if (organization.isLoaded && user.isLoaded) {
     orgId = organization.organization?.id ?? user.user?.id;
   }
-  const files = useQuery(api.files.getFiles, orgId ? { orgId, query } : "skip");
+  const files = useQuery(
+    api.files.getFiles,
+    orgId ? { orgId, query, favourites } : "skip"
+  );
   const isLoading = files === undefined;
 
   return (
-    <main className="container mx-auto pt-12">
+    <div>
       {isLoading && (
         <div className="flex flex-col gap-8 w-full items-center mt-12">
           <Loader2 className="h-32 w-32 animate-spin text-gray-500" />
@@ -50,7 +60,7 @@ export default function Home() {
       {!isLoading && (
         <>
           <div className="flex justify-between items-center mb-8">
-            <h1 className="text-4xl fontbold">Your Files</h1>
+            <h1 className="text-4xl fontbold">{title}</h1>
 
             <SearchBar query={query} setQuery={setQuery} />
             <UploadButton />
@@ -64,6 +74,6 @@ export default function Home() {
           </div>
         </>
       )}
-    </main>
+    </div>
   );
 }

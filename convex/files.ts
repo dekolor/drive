@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { MutationCtx, QueryCtx, mutation, query } from "./_generated/server";
 import { getUser } from "./users";
 import { fileTypes } from "./schema";
+import { Id } from "./_generated/dataModel";
 
 export const generateUploadUrl = mutation(async (ctx) => {
   const identity = await ctx.auth.getUserIdentity();
@@ -66,6 +67,7 @@ export const getFiles = query({
   args: {
     orgId: v.string(),
     query: v.optional(v.string()),
+    favourites: v.optional(v.boolean()),
   },
   async handler(ctx, args) {
     const identity = await ctx.auth.getUserIdentity();
@@ -84,7 +86,7 @@ export const getFiles = query({
       return [];
     }
 
-    const files = ctx.db
+    let files = await ctx.db
       .query("files")
       .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
       .collect();
@@ -92,40 +94,126 @@ export const getFiles = query({
     const query = args.query;
 
     if (query) {
-      return (await files).filter((file) =>
+      files = files.filter((file) =>
         file.name.toLocaleLowerCase().includes(query.toLocaleLowerCase())
       );
-    } else {
-      return files;
     }
+
+    if (args.favourites) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_tokenIdentifier", (q) =>
+          q.eq("tokenIdentifier", identity.tokenIdentifier)
+        )
+        .first();
+
+      if (!user) {
+        return files;
+      }
+
+      const favourites = await ctx.db
+        .query("favourites")
+        .withIndex("by_userId_orgId_fileId", (q) =>
+          q.eq("userId", user._id).eq("orgId", args.orgId)
+        )
+        .collect();
+
+      files = files.filter((file) =>
+        favourites.some((favourite) => favourite.fileId === file._id)
+      );
+    }
+
+    const filesWithUrl = await Promise.all(
+      files.map(async (file) => ({
+        ...file,
+        url: await ctx.storage.getUrl(file.fileId),
+      }))
+    );
+
+    return filesWithUrl;
   },
 });
 
 export const deleteFile = mutation({
   args: { fileId: v.id("files") },
   async handler(ctx, args) {
-    const identity = await ctx.auth.getUserIdentity();
+    const access = await hasAccessToFile(ctx, args.fileId);
 
-    if (!identity) {
-      throw new ConvexError("you do not have access to this org");
-    }
-
-    const file = await ctx.db.get(args.fileId);
-
-    if (!file) {
-      throw new ConvexError("this file does not exist");
-    }
-
-    const hasAccess = await hasAccessToOrg(
-      ctx,
-      identity.tokenIdentifier,
-      file.orgId
-    );
-
-    if (!hasAccess) {
-      throw new ConvexError("you do not have access to delete this file");
+    if (!access) {
+      throw new ConvexError("no access to file");
     }
 
     await ctx.db.delete(args.fileId);
   },
 });
+
+export const toggleFavourites = mutation({
+  args: { fileId: v.id("files") },
+  async handler(ctx, args) {
+    const access = await hasAccessToFile(ctx, args.fileId);
+
+    if (!access) {
+      throw new ConvexError("no access to file");
+    }
+
+    const favourite = await ctx.db
+      .query("favourites")
+      .withIndex("by_userId_orgId_fileId", (q) =>
+        q
+          .eq("userId", access.user._id)
+          .eq("orgId", access.file.orgId)
+          .eq("fileId", access.file._id)
+      )
+      .first();
+
+    if (!favourite) {
+      await ctx.db.insert("favourites", {
+        fileId: access.file._id,
+        userId: access.user._id,
+        orgId: access.file.orgId,
+      });
+    } else {
+      await ctx.db.delete(favourite._id);
+    }
+  },
+});
+
+async function hasAccessToFile(
+  ctx: QueryCtx | MutationCtx,
+  fileId: Id<"files">
+) {
+  const identity = await ctx.auth.getUserIdentity();
+
+  if (!identity) {
+    return null;
+  }
+
+  const file = await ctx.db.get(fileId);
+
+  if (!file) {
+    return null;
+  }
+
+  const hasAccess = await hasAccessToOrg(
+    ctx,
+    identity.tokenIdentifier,
+    file.orgId
+  );
+
+  if (!hasAccess) {
+    return null;
+  }
+
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_tokenIdentifier", (q) =>
+      q.eq("tokenIdentifier", identity.tokenIdentifier)
+    )
+    .first();
+
+  if (!user) {
+    return null;
+  }
+
+  return { user, file };
+}
