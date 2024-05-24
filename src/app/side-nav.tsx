@@ -22,11 +22,11 @@ export function SideNav() {
         </Button>
       </Link>
 
-      <Link href="/dashboard/favourites">
+      <Link href="/dashboard/favorites">
         <Button
           variant={"link"}
           className={clsx("flex gap-2", {
-            "text-blue-500": pathname.includes("/dashboard/favourites"),
+            "text-blue-500": pathname.includes("/dashboard/favorites"),
           })}
         >
           <StarIcon /> Favourites
