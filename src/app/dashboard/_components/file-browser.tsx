@@ -1,16 +1,17 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { useOrganization, useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import UploadButton from "./upload-button";
 import { FileCard } from "./file-card";
 import Image from "next/image";
-import { FileIcon, Loader2, StarIcon } from "lucide-react";
+import { GridIcon, Loader2, RowsIcon, TableIcon } from "lucide-react";
 import { SearchBar } from "./search-bar";
 import { useState } from "react";
-import Link from "next/link";
+import { DataTable } from "./file-table";
+import { columns } from "./columns";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function Placeholder() {
   return (
@@ -56,38 +57,56 @@ export default function FileBrowser({
   );
   const isLoading = files === undefined;
 
+  const modifiedFiles =
+    files?.map((file) => ({
+      ...file,
+      isFavorited: (favorites ?? []).some(
+        (favorite) => favorite.fileId === file._id
+      ),
+    })) ?? [];
+
   return (
     <div>
-      {isLoading && (
-        <div className="flex flex-col gap-8 w-full items-center mt-12">
-          <Loader2 className="h-32 w-32 animate-spin text-gray-500" />
-          <div className="text-2xl">Loading your files...</div>
+      <>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl fontbold">{title}</h1>
+
+          <SearchBar query={query} setQuery={setQuery} />
+          <UploadButton />
         </div>
-      )}
 
-      {!isLoading && (
-        <>
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-4xl fontbold">{title}</h1>
+        <Tabs defaultValue="grid">
+          <TabsList className="mb-4">
+            <TabsTrigger value="grid" className="flex gap-2 items-center">
+              <GridIcon />
+              Grid
+            </TabsTrigger>
+            <TabsTrigger value="table" className="flex gap-2 items-center">
+              <RowsIcon />
+              Table
+            </TabsTrigger>
+          </TabsList>
+          {isLoading && (
+            <div className="flex flex-col gap-8 w-full items-center mt-12">
+              <Loader2 className="h-32 w-32 animate-spin text-gray-500" />
+              <div className="text-2xl">Loading your files...</div>
+            </div>
+          )}
+          <TabsContent value="grid">
+            <div className="grid grid-cols-3 gap-4">
+              {modifiedFiles?.map((file) => {
+                return <FileCard key={file._id} file={file} />;
+              })}
+            </div>
+          </TabsContent>
+          <TabsContent value="table">
+            {" "}
+            <DataTable columns={columns} data={modifiedFiles} />
+          </TabsContent>
+        </Tabs>
 
-            <SearchBar query={query} setQuery={setQuery} />
-            <UploadButton />
-          </div>
-
-          {files.length === 0 && <Placeholder />}
-          <div className="grid grid-cols-3 gap-4">
-            {files?.map((file) => {
-              return (
-                <FileCard
-                  favorites={favorites ?? []}
-                  key={file._id}
-                  file={file}
-                />
-              );
-            })}
-          </div>
-        </>
-      )}
+        {files?.length === 0 && <Placeholder />}
+      </>
     </div>
   );
 }
