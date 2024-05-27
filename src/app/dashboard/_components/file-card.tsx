@@ -19,7 +19,7 @@ import { FileCardActions } from "./file-actions";
 export function FileCard({
   file,
 }: {
-  file: Doc<"files"> & { isFavorited: boolean };
+  file: Doc<"files"> & { isFavorited: boolean; url: string | null };
 }) {
   const userProfile = useQuery(api.users.getUserProfile, {
     userId: file.userId,
