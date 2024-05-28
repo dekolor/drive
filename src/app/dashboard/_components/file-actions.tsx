@@ -60,7 +60,6 @@ export function FileCardActions({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
-                // TODO: actually delete the file
                 await deleteFile({
                   fileId: file._id,
                 });

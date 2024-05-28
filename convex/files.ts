@@ -6,10 +6,8 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import { getUser } from "./users";
 import { fileTypes } from "./schema";
 import { Doc, Id } from "./_generated/dataModel";
-import { use } from "react";
 
 export const generateUploadUrl = mutation(async (ctx) => {
   const identity = await ctx.auth.getUserIdentity();
